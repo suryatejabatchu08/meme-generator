@@ -42,4 +42,5 @@ jobs:
           --image us-central1-docker.pkg.dev/novi-464614/meme-generator-repo/meme-generator:latest \
           --platform managed \
           --region us-central1 \
-          --allow-unauthenticated
+          --allow-unauthenticated \
+          --set-env-vars "IMGFLIP_USERNAME=${{ secrets.IMGFLIP_USERNAME }},IMGFLIP_PASSWORD=${{ secrets.IMGFLIP_PASSWORD }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}"
