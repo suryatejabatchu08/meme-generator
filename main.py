@@ -72,30 +72,78 @@ def extract_json_from_text(text):
     else:
         raise ValueError("No JSON object found in Gemini output")
 
-async def suggest_template(templates, meme_content):
+async def suggest_template(templates, meme_content, previous_conversation):
+    """
+    Use Gemini to intelligently select the best meme template based on:
+    1. The generated meme content (top and bottom text)
+    2. The previous conversation context
+    """
     template_names = [t['name'] for t in templates]
-    temp = ', '.join(template_names)
-    print(temp)
+    
+    # Create a more structured prompt with template descriptions
+    template_descriptions = []
+    for i, template in enumerate(templates):
+        template_descriptions.append(f"{i+1}. {template['name']} (ID: {template['id']})")
+    
     prompt = (
-        f"Given the meme caption '{meme_content}', which of the following meme templates is the best fit?\n"
-        f"Templates: {', '.join(template_names)}\n"
-        "Return the template name only."
+        f"Given the following context, select the most appropriate meme template:\n\n"
+        f"Previous Conversation: {previous_conversation}\n"
+        f"Generated Meme Text: {meme_content}\n\n"
+        f"Available Templates:\n" + "\n".join(template_descriptions) + "\n\n"
+        f"Instructions:\n"
+        f"1. Consider the emotional tone, humor style, and context of the conversation\n"
+        f"2. Match the template to the meme's sentiment and style\n"
+        f"3. Return ONLY the exact template name from the list above\n"
+        f"4. Do not add any explanations or additional text\n"
+        f"5. Choose a different template than 'Drake Hotline Bling' unless it's the perfect fit"
     )
-    response = await call_gemini_api(prompt)
-    # Find the template whose name matches the response
-    for template in templates:
-        if response.strip().lower() == template['name'].lower():
-            print(response)
-            return response.strip()
-    return random.choice(templates)
+    
+    try:
+        print(f"Debug: Sending template selection prompt to Gemini...")
+        response = await call_gemini_api(prompt)
+        response_clean = response.strip().lower()
+        print(f"Debug: Gemini response: '{response}'")
+        print(f"Debug: Cleaned response: '{response_clean}'")
+        
+        # Find the template whose name matches the response
+        for template in templates:
+            if response_clean == template['name'].lower():
+                print(f"AI selected template (exact match): {template['name']}")
+                return template
+        
+        # If no exact match found, try partial matching
+        for template in templates:
+            if response_clean in template['name'].lower() or template['name'].lower() in response_clean:
+                print(f"AI selected template (partial match): {template['name']}")
+                return template
+        
+        # Try to extract template name from response if it contains extra text
+        for template in templates:
+            if template['name'].lower() in response_clean:
+                print(f"AI selected template (extracted): {template['name']}")
+                return template
+        
+        # Fallback to random selection if no match found
+        print("No AI match found, using random selection")
+        return random.choice(templates)
+        
+    except Exception as e:
+        print(f"Error in AI template selection: {e}")
+        return random.choice(templates)
 
 async def improvise_meme_text(previous_conversation, bot_id):
     # Compose prompt for Gemini
     prompt = (
-        "Given the following conversation, generate a meme caption based on the bot's behaviour.\n"
+        "Given the following conversation, generate a meme that represents the bot's response or reaction to the user.\n"
+        "The meme should capture the bot's personality, tone, and how they would respond to the situation.\n"
         "Return as JSON with 'top_text' and 'bottom_text'.\n"
         f"Bot Personality: {get_bot_prompt(bot_id)}\n"
-        f"Conversation: {previous_conversation}"
+        f"Conversation: {previous_conversation}\n\n"
+        f"Examples:\n"
+        f"- If user is sad, bot's meme might be supportive and caring\n"
+        f"- If user is frustrated, bot's meme might be understanding and helpful\n"
+        f"- If user shares good news, bot's meme might be excited and celebratory\n"
+        f"- If user is confused, bot's meme might be reassuring and explanatory"
     )
     # Call Gemma (for quick response)
     response = await call_gemma_api(prompt)
@@ -112,26 +160,28 @@ class MemeRequest(BaseModel):
 async def generate_meme_endpoint(request: MemeRequest):
     previous_conversation = request.previous_conversation
     bot_id = request.bot_id
+    
     # 1. Get meme text from Gemma
     top_text, bottom_text = await improvise_meme_text(previous_conversation, bot_id)
-    # 2. Fetch templates and generate meme as before
+    
+    # 2. Fetch templates
     templates = await fetch_templates()
     if not templates:
         return {"error": "Could not fetch meme templates"}
-    template = random.choice(templates)
-    #print("Templates: ", templates)
-    # Use AI-based matching instead of random choice
-    #meme_content = f"{top_text} {bottom_text}"
-    #template = await suggest_template(templates, meme_content)
-    #print("Choosen Template: ", template)
-    #for temp in templates:
-    #    if template.lower() == temp['name'].lower():
-    #        print(template)
-    #        print(temp['id'])
-    #        template_id = temp['id']
-    #        break
-    meme_url = await generate_meme_imgflip(top_text, bottom_text, template['id'])
+    
+    # 3. Use AI to intelligently select the best template
+    meme_content = f"Top: {top_text} | Bottom: {bottom_text}"
+    selected_template = await suggest_template(templates, meme_content, previous_conversation)
+    
+    # 4. Generate the meme with the selected template
+    meme_url = await generate_meme_imgflip(top_text, bottom_text, selected_template['id'])
+    
     if meme_url:
-        return {"meme_url": meme_url, "template_name": template["name"]}
+        return {
+            "meme_url": meme_url, 
+            "template_name": selected_template["name"],
+            "top_text": top_text,
+            "bottom_text": bottom_text
+        }
     else:
         return {"error": "Failed to generate meme"}
