@@ -136,6 +136,8 @@ async def improvise_meme_text(previous_conversation, bot_id):
     prompt = (
         "Given the following conversation, generate a meme that represents the bot's response or reaction to the user.\n"
         "The meme should capture the bot's personality, tone, and how they would respond to the situation.\n"
+        "The meme should be short and punchy, and should be a good fit for the bot's personality.\n"
+        "But it should not be in the way how bot call the user.\n"
         "Return as JSON with 'top_text' and 'bottom_text'.\n"
         f"Bot Personality: {get_bot_prompt(bot_id)}\n"
         f"Conversation: {previous_conversation}\n\n"
