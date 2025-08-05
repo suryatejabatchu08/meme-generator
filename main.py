@@ -131,16 +131,20 @@ async def suggest_template(templates, meme_content, previous_conversation):
         print(f"Error in AI template selection: {e}")
         return random.choice(templates)
 
-async def improvise_meme_text(previous_conversation, bot_id):
+async def improvise_meme_text(previous_conversation, bot_id, templates):
+    template_names = [t['name'] for t in templates]
+    template_names.reverse()
     # Compose prompt for Gemini
     prompt = (
         "Given the following conversation, generate a meme that represents the bot's response or reaction to the user.\n"
         "The meme should capture the bot's personality, tone, and how they would respond to the situation.\n"
-        "The meme should be short and punchy, and should be a good fit for the bot's personality.\n"
+        "The meme should always be short and punchy, and should be a good fit for the bot's personality.\n"
         "But it should not be in the way how bot call the user.\n"
+        "Even if the bot prompt contains to use emojis, you should not use them.\n"
         "Return as JSON with 'top_text' and 'bottom_text'.\n"
         f"Bot Personality: {get_bot_prompt(bot_id)}\n"
-        f"Conversation: {previous_conversation}\n\n"
+        f"Conversation: {previous_conversation}\n"
+        f"Available Templates: {template_names}\n\n"
         f"Examples:\n"
         f"- If user is sad, bot's meme might be supportive and caring\n"
         f"- If user is frustrated, bot's meme might be understanding and helpful\n"
@@ -162,14 +166,14 @@ class MemeRequest(BaseModel):
 async def generate_meme_endpoint(request: MemeRequest):
     previous_conversation = request.previous_conversation
     bot_id = request.bot_id
-    
-    # 1. Get meme text from Gemma
-    top_text, bottom_text = await improvise_meme_text(previous_conversation, bot_id)
-    
-    # 2. Fetch templates
+
+    # 1. Fetch templates
     templates = await fetch_templates()
     if not templates:
         return {"error": "Could not fetch meme templates"}
+    
+    # 2. Get meme text from Gemma
+    top_text, bottom_text = await improvise_meme_text(previous_conversation, bot_id, templates)
     
     # 3. Use AI to intelligently select the best template
     meme_content = f"Top: {top_text} | Bottom: {bottom_text}"
