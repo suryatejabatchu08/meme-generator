@@ -1,4 +1,4 @@
-name: Deploy to Cloud Run
+name: Deploy to Cloud Run (Source-based)
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,24 +23,14 @@ jobs:
     - name: Set up Google Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
       with:
-        project_id: novi-464614
+        project_id: cvoapi
 
-    # ✅ Configure Docker to push to Artifact Registry
-    - name: Configure Docker authentication
-      run: gcloud auth configure-docker us-central1-docker.pkg.dev
-
-    # ✅ Build and push Docker image
-    - name: Build and Push Docker Image
-      run: |
-        docker build -t us-central1-docker.pkg.dev/novi-464614/meme-generator-repo/meme-generator:latest .
-        docker push us-central1-docker.pkg.dev/novi-464614/meme-generator-repo/meme-generator:latest
-
-    # ✅ Deploy to Cloud Run
+    # ✅ Deploy directly from source (no Docker build/push)
     - name: Deploy to Cloud Run
       run: |
         gcloud run deploy meme-generator \
-          --image us-central1-docker.pkg.dev/novi-464614/meme-generator-repo/meme-generator:latest \
-          --platform managed \
+          --source . \
           --region us-central1 \
+          --platform managed \
           --allow-unauthenticated \
           --set-env-vars "IMGFLIP_USERNAME=${{ secrets.IMGFLIP_USERNAME }},IMGFLIP_PASSWORD=${{ secrets.IMGFLIP_PASSWORD }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}"
