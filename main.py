@@ -95,7 +95,10 @@ async def suggest_template(templates, meme_content, previous_conversation):
         f"2. Match the template to the meme's sentiment and style\n"
         f"3. Return ONLY the exact template name from the list above\n"
         f"4. Do not add any explanations or additional text\n"
-        f"5. Choose a different template than 'Drake Hotline Bling' unless it's the perfect fit"
+        f"5. Choose a different template than 'Drake Hotline Bling' unless it's the perfect fit\n"
+        f"6. Choose a template that complements the meme's message and tone\n"
+        f"7. Choose a different template than the one previously used\n"
+        f"8. Choose a different template than 'Pablo Escobar' for sad memes, Use only if it's the best fit. Mostly avoid it.\n"
     )
     
     try:
@@ -149,7 +152,9 @@ async def improvise_meme_text(previous_conversation, bot_id, templates):
         f"- If user is sad, bot's meme might be supportive and caring\n"
         f"- If user is frustrated, bot's meme might be understanding and helpful\n"
         f"- If user shares good news, bot's meme might be excited and celebratory\n"
-        f"- If user is confused, bot's meme might be reassuring and explanatory"
+        f"- If user is confused, bot's meme might be reassuring and explanatory\n"
+        "*Always make the meme captions concise and impactful*\n"
+        "*Don't include any irrelevant information or lengthy explanations and strictly No Emojis*"
     )
     # Call Gemma (for quick response)
     response = await call_gemma_api(prompt)
